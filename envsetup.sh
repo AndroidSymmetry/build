@@ -60,6 +60,17 @@ function check_product()
         echo "Couldn't locate the top of the tree.  Try setting TOP." >&2
         return
     fi
+
+    if (echo -n $1 | grep -q -e "^dk_") ; then
+        TESLA_BUILD=$(echo -n $1 | sed -e 's/^dk_//g')
+        HIDE_MAKEFILE_INCLUDES=y
+    else
+        TESLA_BUILD=
+        HIDE_MAKEFILE_INCLUDES=n
+    fi
+    export TESLA_BUILD
+    export HIDE_MAKEFILE_INCLUDES
+
         TARGET_PRODUCT=$1 \
         TARGET_BUILD_VARIANT= \
         TARGET_BUILD_TYPE= \
@@ -476,6 +487,66 @@ function print_lunch_menu()
     done
 
     echo
+}
+
+function brunch()
+{
+    breakfast $*
+    if [ $? -eq 0 ]; then
+time mka bacon
+    else
+echo "No such item in brunch menu. Try 'breakfast'"
+        return 1
+    fi
+return $?
+}
+
+function breakfast()
+{
+    target=$1
+    local type=$2
+    if [ -z "$type" ]; then
+        type="UNOFFICIAL"
+    fi
+    export DK_RELEASE_TYPE=$type
+    DK_DEVICES_ONLY="true"
+    unset LUNCH_MENU_CHOICES
+    add_lunch_combo full-eng
+    for f in `/bin/ls vendor/darkkat/vendorsetup.sh 2> /dev/null`
+        do
+echo "including $f"
+            . $f
+        done
+unset f
+
+    if [ $# -eq 0 ]; then
+        # No arguments, so let's have the full menu
+        lunch
+    else
+echo "z$target" | grep -q "-"
+        if [ $? -eq 0 ]; then
+            # A buildtype was specified, assume a full device name
+            lunch $target
+        else
+            # This is probably just the darkkat model name
+            lunch dk_$target-userdebug
+        fi
+fi
+return $?
+}
+
+alias bib=breakfast
+
+# Make using all available CPUs
+function mka() {
+    case `uname -s` in
+        Darwin)
+            make -j `sysctl hw.ncpu|cut -d" " -f2` "$@"
+            ;;
+        *)
+            schedtool -B -n 1 -e ionice -n 1 make -j `cat /proc/cpuinfo | grep "^processor" | wc -l` "$@"
+            ;;
+    esac
 }
 
 function lunch()
